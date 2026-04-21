@@ -31,19 +31,17 @@ export function getClient(): AxiosClient {
     timeout: 60000,
   };
 
-  // Bearer (API key) and Basic (demo gate) are layered: Basic at the nginx
-  // layer gates access to the /claims API, Bearer at the app layer
-  // authorizes write operations. Both may be needed in production.
+  // Auth layers are independent:
+  //  - Basic (KOI_BASIC_AUTH_USER/PASS) — transport-layer, gates the nginx
+  //    /claims location. Required to reach the backend at all while the
+  //    dogfood demo is gated.
+  //  - Bearer (KOI_API_KEY) — app-layer, authorizes write operations in the
+  //    koi-processor dual-auth middleware. Read ops work without it.
+  // Both can (and in production usually should) be set together.
+  if (basicUser && basicPass) {
+    config.auth = { username: basicUser, password: basicPass };
+  }
   if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`;
-  } else if (basicUser && basicPass) {
-    config.auth = { username: basicUser, password: basicPass };
-  } else if (basicUser && basicPass && apiKey) {
-    // Both: Basic on the transport, Bearer on the app. axios.auth sets Basic,
-    // header.Authorization sets Bearer — but nginx strips Basic before proxy
-    // in most configs, so keep them separate. If this combination breaks,
-    // fall back to manually computing both and picking one.
-    config.auth = { username: basicUser, password: basicPass };
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
