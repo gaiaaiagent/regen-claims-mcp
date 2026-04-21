@@ -1,0 +1,55 @@
+{
+  "name": "regen-claims-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the Regen Network Claims Engine — create, review, attest, and anchor impact claims on the Regen Ledger",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "regen-claims-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "regen-network",
+    "claims-engine",
+    "attestation",
+    "on-chain-anchoring",
+    "impact-claims",
+    "ai",
+    "claude",
+    "regenerative-finance"
+  ],
+  "author": "Regen Network",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaiaaiagent/regen-claims-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gaiaaiagent/regen-claims-mcp/issues"
+  },
+  "homepage": "https://github.com/gaiaaiagent/regen-claims-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
