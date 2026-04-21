@@ -15,6 +15,9 @@ self_reported → peer_reviewed → verified → ledger_anchored
 
 ## Tools
 
+### Meta
+- `auth_status` — show current endpoint, basic-auth user, and Bearer token state
+
 ### Claims CRUD
 - `create_claim` — create a new impact claim
 - `search_claims` — filter by verification level, type, claimant, or subject
@@ -91,8 +94,27 @@ Add to your Claude Code MCP config (or use `/mcp add`):
 
 ## Auth
 
-- **Read ops** (`search_claims`, `get_claim`, `list_attestations`) work without auth against production.
-- **Write ops** (`create_claim`, `verify_claim`, `anchor_claim`, `create_attestation`, etc.) require `KOI_API_KEY` for write access. Talk to Darren to get a team key.
+Three layers, all independent and potentially stacked:
+
+1. **HTTP basic auth** (transport, via env) — nginx gate on the `/claims` location during the dogfood phase. Set `KOI_BASIC_AUTH_USER` + `KOI_BASIC_AUTH_PASS`. Ask Darren or Gregory for team creds (out-of-band).
+2. **Shared OAuth Bearer** (app layer, via shared token file) — populated by `regen-koi-mcp`'s `regen_koi_authenticate` tool using an RFC 8628 device code flow against `https://regen.gaiaai.xyz/auth/*`. `@regen.network` emails only. Token is stored at `~/.koi-auth.json` (mode 0600) and **automatically picked up by this MCP** — no separate login needed.
+3. **Bearer override** (app layer, via env) — set `KOI_API_KEY` for non-OAuth service tokens (CI, backend-to-backend). Overrides the shared token when set.
+
+### Recommended team setup
+
+```bash
+# 1. Install regen-koi-mcp and authenticate once
+# 2. In Claude Code, run: regen_koi_authenticate
+#    (sign in with your @regen.network email at https://regen.gaiaai.xyz/activate)
+# 3. Install this MCP — it will automatically read the token from ~/.koi-auth.json
+```
+
+Run the `auth_status` tool in this MCP to confirm your current auth state.
+
+### Current state of auth enforcement
+
+- **Read ops** (`search_claims`, `get_claim`, `list_attestations`, `get_attestation`) — require basic auth (nginx gate) but work anonymously at the app layer.
+- **Write ops** (`create_claim`, `verify_claim`, `anchor_claim`, `create_attestation`, etc.) — require basic auth + Bearer once backend write-path auth is strict. Today some writes may succeed without Bearer; this is expected to tighten.
 
 ## Backend
 

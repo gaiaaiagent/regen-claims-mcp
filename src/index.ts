@@ -58,9 +58,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const message = err instanceof Error ? err.message : String(err);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const httpErr = err as any;
+    const status = httpErr?.response?.status;
     const detail = httpErr?.response?.data
       ? `\n\nBackend response: ${JSON.stringify(httpErr.response.data, null, 2)}`
       : '';
+
+    // Friendly 401 message — point to the shared auth flow.
+    if (status === 401) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text:
+              `${name} returned 401 Unauthorized.\n\n` +
+              `This usually means one of:\n` +
+              `  • HTTP basic-auth creds missing or wrong — set KOI_BASIC_AUTH_USER / KOI_BASIC_AUTH_PASS (ask Darren or Gregory for team creds).\n` +
+              `  • Write operation needs an OAuth Bearer token — run \`regen_koi_authenticate\` in the regen-koi-mcp plugin (sign in with your @regen.network email). The resulting token is shared at ~/.koi-auth.json and picked up automatically.\n` +
+              `  • Both may be needed in production.\n\n` +
+              `Run \`auth_status\` to see the current state.${detail}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
     return {
       content: [
         {

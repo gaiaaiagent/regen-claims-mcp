@@ -11,9 +11,17 @@
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
-import { getClient } from './client.js';
+import { getClient, authStatus } from './client.js';
 
 export const TOOL_DEFINITIONS: Tool[] = [
+  // ─── Meta / auth ──────────────────────────────────────────────────────────
+  {
+    name: 'auth_status',
+    description:
+      'Show the current auth state of this MCP: endpoint, basic-auth user, and whether a shared OAuth Bearer token is present and valid. Useful for diagnosing 401s. To obtain a Bearer token, run `regen_koi_authenticate` in the regen-koi-mcp plugin — the token is shared between the two MCPs via ~/.koi-auth.json.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+
   // ─── Claims: CRUD + verification ──────────────────────────────────────────
   {
     name: 'create_claim',
@@ -293,6 +301,9 @@ export async function dispatchTool(name: string, args: HandlerArgs) {
   const client = getClient();
 
   switch (name) {
+    case 'auth_status':
+      return textResult(authStatus());
+
     // ─── Claims CRUD ─────────────────────────────────────────────────────────
     case 'create_claim': {
       const body: Record<string, unknown> = {
