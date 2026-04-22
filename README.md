@@ -16,7 +16,7 @@ self_reported → peer_reviewed → verified → ledger_anchored
 ## Tools
 
 ### Meta
-- `auth_status` — show current endpoint, basic-auth user, and Bearer token state
+- `auth_status` — show current endpoint and Bearer token state
 
 ### Claims CRUD
 - `create_claim` — create a new impact claim
@@ -66,55 +66,64 @@ Add to your Claude Code MCP config (or use `/mcp add`):
       "command": "npx",
       "args": ["-y", "regen-claims-mcp"],
       "env": {
-        "KOI_API_ENDPOINT": "https://regen.gaiaai.xyz",
-        "KOI_BASIC_AUTH_USER": "<user>",
-        "KOI_BASIC_AUTH_PASS": "<pass>",
-        "KOI_API_KEY": ""
+        "KOI_API_ENDPOINT": "https://regen.gaiaai.xyz"
       }
     }
   }
 }
 ```
 
-> The production claims API is currently gated behind HTTP basic auth while the engine is in dogfood phase. Team creds are shared out-of-band (Signal / 1Password) — ask Darren or Gregory. `KOI_API_KEY` (Bearer) will be required for write operations once write-path auth is wired up on the backend.
+That's it. If you've already authenticated in `regen-koi-mcp` (via `regen_koi_authenticate`), this MCP picks up your token automatically from `~/.koi-auth.json`. Reads work without any auth.
+
+## Auth
+
+A single mechanism: **OAuth Bearer token, scoped to `@regen.network` emails, issued via RFC 8628 device-code flow.**
+
+The same token works for:
+- The `regen-claims-mcp` MCP (this package)
+- The `regen-koi-mcp` MCP (knowledge search)
+- The browser portal at [regen.gaiaai.xyz/claims](https://regen.gaiaai.xyz/claims) (delivered as an HttpOnly session cookie)
+
+### Getting a token (once)
+
+```
+# In Claude Code:
+regen_koi_authenticate   (tool from regen-koi-mcp)
+
+# Follow the prompts:
+# 1. Open https://regen.gaiaai.xyz/activate
+# 2. Enter the code shown
+# 3. Sign in with @regen.network
+```
+
+Token is stored at `~/.koi-auth.json` (mode 0600). `regen-claims-mcp` reads it automatically on every request — no restart needed after authenticating.
+
+### What requires auth
+
+- **Read endpoints** (`search_claims`, `get_claim`, `list_attestations`, `get_attestation`, `get_proof_pack`) — **open, no auth needed**
+- **Write endpoints** (`create_claim`, `verify_claim`, `link_evidence`, `anchor_claim`, `reconcile_claim`, `extract_claims`, `create_attestation`, `anchor_attestation`, `reconcile_attestation`, commitments) — **require a valid Bearer token**
+
+### Service tokens (backend-to-backend)
+
+For CI jobs or scheduled processes without an interactive OAuth identity, set a fixed service token on the backend (`KOI_CLAIMS_SERVICE_TOKEN` env var on the koi-processor host) and pass it via `KOI_API_KEY`:
+
+```json
+{ "env": { "KOI_API_KEY": "<service-token>" } }
+```
+
+When `KOI_API_KEY` is set, it overrides the shared OAuth token from `~/.koi-auth.json`. Writes authenticated this way are attributed to `service:claims-service` in the audit trail.
 
 ## Environment variables
 
 | Var | Default | Purpose |
 |---|---|---|
 | `KOI_API_ENDPOINT` | `https://regen.gaiaai.xyz` | Claims API base URL |
-| `KOI_API_KEY` | *(empty)* | Bearer token for write operations |
-| `KOI_BASIC_AUTH_USER` | *(empty)* | HTTP basic-auth user (the demo is currently gated behind basic auth) |
-| `KOI_BASIC_AUTH_PASS` | *(empty)* | HTTP basic-auth password |
+| `KOI_API_KEY` | *(empty)* | Bearer override (service tokens). Takes precedence over `~/.koi-auth.json` |
 | `OPENAI_API_KEY` | *(empty)* | Required only for `draft_commitment_from_text` |
 | `CLAIMS_ENABLED_TOOLS` | *(unset)* | Whitelist (CSV). If set, only these tools load |
 | `CLAIMS_DISABLED_TOOLS` | *(empty)* | Blacklist (CSV) |
 | `MCP_SERVER_NAME` | `regen-claims` | Override MCP server identity |
 | `MCP_SERVER_VERSION` | *package.json* | Override version reported to MCP clients |
-
-## Auth
-
-Three layers, all independent and potentially stacked:
-
-1. **HTTP basic auth** (transport, via env) — nginx gate on the `/claims` location during the dogfood phase. Set `KOI_BASIC_AUTH_USER` + `KOI_BASIC_AUTH_PASS`. Ask Darren or Gregory for team creds (out-of-band).
-2. **Shared OAuth Bearer** (app layer, via shared token file) — populated by `regen-koi-mcp`'s `regen_koi_authenticate` tool using an RFC 8628 device code flow against `https://regen.gaiaai.xyz/auth/*`. `@regen.network` emails only. Token is stored at `~/.koi-auth.json` (mode 0600) and **automatically picked up by this MCP** — no separate login needed.
-3. **Bearer override** (app layer, via env) — set `KOI_API_KEY` for non-OAuth service tokens (CI, backend-to-backend). Overrides the shared token when set.
-
-### Recommended team setup
-
-```bash
-# 1. Install regen-koi-mcp and authenticate once
-# 2. In Claude Code, run: regen_koi_authenticate
-#    (sign in with your @regen.network email at https://regen.gaiaai.xyz/activate)
-# 3. Install this MCP — it will automatically read the token from ~/.koi-auth.json
-```
-
-Run the `auth_status` tool in this MCP to confirm your current auth state.
-
-### Current state of auth enforcement
-
-- **Read ops** (`search_claims`, `get_claim`, `list_attestations`, `get_attestation`) — require basic auth (nginx gate) but work anonymously at the app layer.
-- **Write ops** (`create_claim`, `verify_claim`, `anchor_claim`, `create_attestation`, etc.) — require basic auth + Bearer once backend write-path auth is strict. Today some writes may succeed without Bearer; this is expected to tighten.
 
 ## Backend
 
@@ -122,7 +131,7 @@ All tools are thin HTTP wrappers around the `koi-processor` `/claims/*` and `/co
 
 ## Related packages
 
-- **[regen-koi-mcp](https://github.com/gaiaaiagent/regen-koi-mcp)** — KOI knowledge search, entity resolution, SPARQL
+- **[regen-koi-mcp](https://github.com/gaiaaiagent/regen-koi-mcp)** — KOI knowledge search, entity resolution, SPARQL. **Source of truth for authentication** (`regen_koi_authenticate` tool).
 - **[regen-python-mcp](https://github.com/gaiaaiagent/regen-python-mcp)** — Regen Ledger read-only queries (balances, governance, ecocredits)
 - **[personal-koi-mcp](https://github.com/gaiaaiagent/personal-koi-mcp)** — Darren's personal workflow stack (vault, tasks, sessions, Graphiti) — **not intended for team use**
 
