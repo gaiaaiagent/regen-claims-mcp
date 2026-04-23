@@ -18,8 +18,14 @@ export const TOOL_DEFINITIONS: Tool[] = [
   {
     name: 'auth_status',
     description:
-      'Show the current auth state of this MCP: endpoint, basic-auth user, and whether a shared OAuth Bearer token is present and valid. Useful for diagnosing 401s. To obtain a Bearer token, run `regen_koi_authenticate` in the regen-koi-mcp plugin — the token is shared between the two MCPs via ~/.koi-auth.json.',
+      'Show the current auth state of this MCP: endpoint, basic-auth user, and whether a shared OAuth Bearer token is present and valid. Useful for diagnosing 401s. To obtain a Bearer token, run `regen_koi_authenticate` in the regen-koi-mcp plugin — the token is shared between the two MCPs via ~/.koi-auth.json. Run get_my_identity to see your entity URIs for use as claimant or reviewer.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_my_identity',
+    description:
+      'Return your authenticated email and entity URIs to use as claimant_uri when creating claims or reviewer_uri when attesting. Run this when you get a 422 "entity not found" error — it shows entity URIs registered to your account plus registry suggestions derived from your email.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
 
   // ─── Claims: CRUD + verification ──────────────────────────────────────────
@@ -303,6 +309,11 @@ export async function dispatchTool(name: string, args: HandlerArgs) {
   switch (name) {
     case 'auth_status':
       return textResult(authStatus());
+
+    case 'get_my_identity': {
+      const { data } = await client.get('/claims/identity');
+      return textResult(JSON.stringify(data, null, 2));
+    }
 
     // ─── Claims CRUD ─────────────────────────────────────────────────────────
     case 'create_claim': {

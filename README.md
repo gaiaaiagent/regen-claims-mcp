@@ -16,7 +16,8 @@ self_reported → peer_reviewed → verified → ledger_anchored
 ## Tools
 
 ### Meta
-- `auth_status` — show current endpoint and Bearer token state
+- `auth_status` — show current endpoint and Bearer token state. Run `get_my_identity` to see your entity URIs.
+- `get_my_identity` — return your email and entity URIs to use as `claimant_uri` or `reviewer_uri`. Run this when you get a 422 "entity not found" error.
 
 ### Claims CRUD
 - `create_claim` — create a new impact claim
@@ -39,6 +40,17 @@ self_reported → peer_reviewed → verified → ledger_anchored
 ### Commitments (hackathon extension)
 - `draft_commitment_from_text` — LLM-parse natural-language commitments
 - `suggest_pool_routes` — score pool matches for a commitment
+
+### Verification policy (attestation gates)
+
+| Level | Requirement |
+|---|---|
+| `self_reported` | none — default on create |
+| `peer_reviewed` | ≥ 1 approved attestation |
+| `verified` | ≥ 2 approved attestations from **different** reviewers |
+| `ledger_anchored` | set by `anchor_claim`, not `verify_claim` |
+
+Self-attestation is blocked: `reviewer_uri` cannot match the claim's `claimant_uri`. Use `get_my_identity` to find valid URIs before calling `create_attestation`.
 
 ## Install
 

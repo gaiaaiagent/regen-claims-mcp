@@ -53,7 +53,7 @@ export function getClient(): AxiosClient {
     const envKey = process.env.KOI_API_KEY || '';
     const shared = envKey ? null : readSharedBearer();
     const bearer = envKey || shared?.token;
-    if (bearer) {
+    if (bearer && req.headers) {
       req.headers.set
         ? req.headers.set('Authorization', `Bearer ${bearer}`)
         : ((req.headers as Record<string, string>)['Authorization'] = `Bearer ${bearer}`);
